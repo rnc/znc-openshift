@@ -1,0 +1,205 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: znc-app
+
+#
+# TODO:
+# Triggers for autobuild (so we don't do oc start-build znc-app )
+# Triggers for deployment on build
+# Fix image pull : authentication (do I need :latest on image references) ?
+# Layering on top of rhripps image rather than Fedora (to avoid duplicating his dockerfile).
+#
+
+parameters:
+  - name: ZNC_NAME
+    description: The display name for the first ZNC user account
+    value: Administrator
+    required: true
+  - name: ZNC_USER
+    description: The username for the first ZNC user account
+    value: admin
+    required: true
+  - name: ZNC_PASS
+    description: The password for the first ZNC user account
+    generate: expression
+    from: "[a-zA-Z0-9]{16}"
+  - name: APPLICATION_NAME
+    description: Name of the application
+    value: znc-app
+
+objects:
+
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    annotations:
+      pv.kubernetes.io/bind-completed: "yes"
+      pv.kubernetes.io/bound-by-controller: "yes"
+    creationTimestamp: null
+    name: znc-pvc-storage
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 500M
+    volumeName: znc-pv
+
+# defines a wrapper on top of our newly built image
+# (this is used to trigger a deployment if the image changes = has been rebuilt)
+- kind: ImageStream
+  apiVersion: v1
+  metadata:
+    name: ${APPLICATION_NAME}
+    labels:
+      application: ${APPLICATION_NAME}
+
+# defines the build configuration
+- apiVersion: v1
+  # TODO Should this be buildconfig or imagestream
+  kind: BuildConfig
+#  kind: ImageStream
+# TODO: Do I need the metadata labels?
+  metadata:
+    labels:
+      app: ${APPLICATION_NAME}
+    name: ${APPLICATION_NAME}
+  spec:
+    # TODO: Change the build indicator
+    strategy:
+      type: Docker
+      dockerStrategy:
+        dockerfilePath: Dockerfile
+    output:
+      to:
+        kind: ImageStreamTag
+        name: ${APPLICATION_NAME}:latest
+    source:
+      type: Git
+      git:
+        uri: https://github.com/rnc/znc-openshift.git
+    triggers:
+    - type: ImageChange
+    # tags:
+    # - from:
+    #     kind: DockerImage
+    #     name: nhripps/${APPLICATION_NAME}
+    #   name: latest
+
+# defines the deployment configuration
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    annotations:
+      openshift.io/generated-by: OpenShiftNewApp
+    creationTimestamp: null
+    generation: 4
+    labels:
+      app: ${APPLICATION_NAME}
+    name: ${APPLICATION_NAME}
+  spec:
+    replicas: 1
+    selector:
+      app: ${APPLICATION_NAME}
+      deploymentconfig: ${APPLICATION_NAME}
+    strategy:
+      resources: {}
+      rollingParams:
+        intervalSeconds: 1
+        maxSurge: 25%
+        maxUnavailable: 25%
+        timeoutSeconds: 600
+        updatePeriodSeconds: 1
+      type: Rolling
+    template:
+      metadata:
+        annotations:
+          openshift.io/container.${APPLICATION_NAME}.image.entrypoint: '["/opt/znc-run/znc_runner.sh"]'
+          openshift.io/generated-by: OpenShiftNewApp
+        creationTimestamp: null
+        labels:
+          app: ${APPLICATION_NAME}
+          deploymentconfig: ${APPLICATION_NAME}
+      spec:
+        containers:
+        - env:
+          - name: ZNC_USER
+            value: "${ZNC_USER}"
+          - name: ZNC_PASS
+            value: "${ZNC_PASS}"
+          - name: ZNC_NAME
+            value: "${ZNC_NAME}"
+          image: ${APPLICATION_NAME}
+          imagePullPolicy: Always
+          name: ${APPLICATION_NAME}
+          volumeMounts:
+            - name: znc-pvc-storage
+              mountPath: "/opt/znc-env"
+          ports:
+          - containerPort: 6697
+            protocol: TCP
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        volumes:
+        - name: znc-pvc-storage
+          persistentVolumeClaim:
+            claimName: znc-pvc-storage
+    test: false
+    triggers:
+    # causes a new deployment to be created any time the replication controller template changes
+    - type: ConfigChange
+    # causes a new deployment to be created each time a new version of the image is available
+    - type: ImageChange
+      imageChangeParams:
+        automatic: true
+        containerNames:
+        - ${APPLICATION_NAME}
+        from:
+          kind: ImageStreamTag
+          name: ${APPLICATION_NAME}:latest
+          # TODO need this namespace??
+          # namespace: myproject
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      openshift.io/generated-by: OpenShiftNewApp
+    creationTimestamp: null
+    labels:
+      app: ${APPLICATION_NAME}
+    name: ${APPLICATION_NAME}
+  spec:
+    ports:
+    - name: 6697-tcp
+      port: 6697
+      protocol: TCP
+      targetPort: 6697
+    selector:
+      app: ${APPLICATION_NAME}
+      deploymentconfig: ${APPLICATION_NAME}
+    sessionAffinity: None
+    type: ClusterIP
+
+- apiVersion: v1
+  kind: Route
+  metadata:
+    annotations:
+      openshift.io/host.generated: "true"
+    creationTimestamp: null
+    labels:
+      app: ${APPLICATION_NAME}
+    name: ${APPLICATION_NAME}
+  spec:
+    port:
+      targetPort: 6697-tcp
+    tls:
+      termination: passthrough
+    to:
+      kind: Service
+      name: ${APPLICATION_NAME}
+      weight: 100
