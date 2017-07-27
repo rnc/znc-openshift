@@ -6,10 +6,7 @@ metadata:
 #
 # TODO:
 # Triggers for autobuild (so we don't do oc start-build znc-app )
-# Triggers for deployment on build
-# Fix image pull : authentication (do I need :latest on image references) ?
-# Layering on top of rhripps image rather than Fedora (to avoid duplicating his dockerfile).
-#
+# GlusterFS
 
 parameters:
   - name: ZNC_NAME
@@ -27,6 +24,11 @@ parameters:
   - name: APPLICATION_NAME
     description: Name of the application
     value: znc-app
+  - name: PVC_NAME
+    description: Name of the persistent volume claim
+    # For local cluster testing, use value znc-pv.
+    # For deployment on OpenPlatform, use value gluster-claim
+    value: znc-pv
 
 objects:
 
@@ -44,7 +46,7 @@ objects:
     resources:
       requests:
         storage: 500M
-    volumeName: znc-pv
+    volumeName: ${PVC_NAME}
 
 # defines a wrapper on top of our newly built image
 # (this is used to trigger a deployment if the image changes = has been rebuilt)
@@ -134,7 +136,7 @@ objects:
           imagePullPolicy: Always
           name: ${APPLICATION_NAME}
           volumeMounts:
-            - name: znc-pvc-storage
+            - name: znc-pvc-storage-volume
               mountPath: "/opt/znc-env"
           ports:
           - containerPort: 6697
@@ -146,7 +148,7 @@ objects:
         securityContext: {}
         terminationGracePeriodSeconds: 30
         volumes:
-        - name: znc-pvc-storage
+        - name: znc-pvc-storage-volume
           persistentVolumeClaim:
             claimName: znc-pvc-storage
     test: false
