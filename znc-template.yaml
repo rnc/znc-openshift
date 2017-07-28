@@ -30,10 +30,10 @@ objects:
 - apiVersion: v1
   kind: PersistentVolumeClaim
   metadata:
-    annotations:
-      pv.kubernetes.io/bind-completed: "yes"
-      pv.kubernetes.io/bound-by-controller: "yes"
-    creationTimestamp: null
+    # annotations:
+    #   pv.kubernetes.io/bind-completed: "yes"
+    #   pv.kubernetes.io/bound-by-controller: "yes"
+    # creationTimestamp: null
     name: znc-pvc-storage
   spec:
     accessModes:
@@ -41,7 +41,8 @@ objects:
     resources:
       requests:
         storage: 500M
-    volumeName: znc-pv
+    # https://docs.openshift.com/container-platform/3.3/dev_guide/persistent_volumes.html#persistent-volumes-volumes-and-claim-prebinding
+    # volumeName: znc-pv
 
 # defines a wrapper on top of our newly built image
 # (this is used to trigger a deployment if the image changes = has been rebuilt)
