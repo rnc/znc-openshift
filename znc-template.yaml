@@ -6,7 +6,7 @@ metadata:
 #
 # TODO:
 # Triggers for autobuild (so we don't do oc start-build znc-app )
-# GlusterFS
+#
 
 parameters:
   - name: ZNC_NAME
@@ -54,10 +54,7 @@ objects:
 
 # defines the build configuration
 - apiVersion: v1
-  # TODO Should this be buildconfig or imagestream
   kind: BuildConfig
-#  kind: ImageStream
-# TODO: Do I need the metadata labels?
   metadata:
     labels:
       app: ${APPLICATION_NAME}
@@ -78,11 +75,6 @@ objects:
         uri: https://github.com/rnc/znc-openshift.git
     triggers:
     - type: ImageChange
-    # tags:
-    # - from:
-    #     kind: DockerImage
-    #     name: nhripps/${APPLICATION_NAME}
-    #   name: latest
 
 # defines the deployment configuration
 - apiVersion: v1
@@ -159,8 +151,6 @@ objects:
         from:
           kind: ImageStreamTag
           name: ${APPLICATION_NAME}:latest
-          # TODO need this namespace??
-          # namespace: myproject
 - apiVersion: v1
   kind: Service
   metadata:
