@@ -7,7 +7,7 @@ USER root
 # upgrading ZNC to 1.6.5
 COPY awaynick2.cpp /usr/lib64/znc
 RUN PKGS='redhat-rpm-config znc-devel gcc-c++' && \
-    dnf install --setopt=tsflags=nodocs -y $PKGS && \
+    dnf install --setopt=tsflags=nodocs -y tar rsync $PKGS && \
     cd /usr/lib64/znc && \
     znc-buildmod awaynick2.cpp && \
     dnf remove -y $PKGS && \
