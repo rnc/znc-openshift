@@ -24,11 +24,6 @@ parameters:
   - name: APPLICATION_NAME
     description: Name of the application
     value: znc-app
-  - name: PVC_NAME
-    description: Name of the persistent volume claim
-    # For local cluster testing, use value znc-pv.
-    # For deployment on OpenPlatform, use value gluster-claim
-    value: znc-pv
 
 objects:
 
@@ -46,7 +41,7 @@ objects:
     resources:
       requests:
         storage: 500M
-    volumeName: ${PVC_NAME}
+    volumeName: znc-pv
 
 # defines a wrapper on top of our newly built image
 # (this is used to trigger a deployment if the image changes = has been rebuilt)
