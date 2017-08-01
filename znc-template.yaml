@@ -178,6 +178,7 @@ objects:
   metadata:
     annotations:
       openshift.io/host.generated: "true"
+      itpaas_idling: "false"
     creationTimestamp: null
     labels:
       app: ${APPLICATION_NAME}
